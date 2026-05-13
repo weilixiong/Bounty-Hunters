@@ -83,7 +83,7 @@ static int check_expiry(X509 *cert)
     const ASN1_TIME *not_before = X509_get0_notBefore(cert);
     const ASN1_TIME *not_after  = X509_get0_notAfter(cert);
     int day_diff, sec_diff;
-    int remaining_seconds;
+    long long remaining_seconds;
     if (!not_before || !not_after) {
         log_cert_event(LOG_LEVEL_ERROR, "certificate missing validity dates");
         return CERT_STATUS_INVALID;
@@ -99,9 +99,9 @@ static int check_expiry(X509 *cert)
     if (!ASN1_TIME_diff(&day_diff, &sec_diff, NULL, not_after))
         return CERT_STATUS_INVALID;
 
-    remaining_seconds = day_diff * 86400 + sec_diff;
-    if (remaining_seconds < 86400 * 30)
-        log_cert_event(LOG_LEVEL_WARN, "certificate expires in %d seconds", remaining_seconds);
+    remaining_seconds = (long long)day_diff * 86400 + sec_diff;
+    if (remaining_seconds < 86400 * 30LL)
+        log_cert_event(LOG_LEVEL_WARN, "certificate expires in %lld seconds", remaining_seconds);
     return CERT_STATUS_OK;
 }
 
@@ -247,3 +247,29 @@ cert_store_t *init_cert_store(int max_depth, int log_level)
     log_cert_event(LOG_LEVEL_INFO, "cert store initialized (max_depth=%d)", store->max_depth);
     return store;
 }
+
+#ifdef TEST
+#include <assert.h>
+
+static void test_check_expiry_no_overflow(void)
+{
+    X509 *cert = X509_new();
+    assert(cert != NULL);
+    assert(ASN1_TIME_set(X509_getm_notBefore(cert), time(NULL) - 60) != NULL);
+    assert(ASN1_TIME_set(X509_getm_notAfter(cert), time(NULL) + 25000LL * 86400) != NULL);
+    assert(check_expiry(cert) == CERT_STATUS_OK);
+    X509_free(cert);
+}
+
+int main(void)
+{
+    test_check_expiry_no_overflow();
+    return 0;
+}
+#else
+int main(void)
+{
+    return 0;
+}
+#endif
+
