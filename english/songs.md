@@ -16,15 +16,20 @@ But the server returned an empty frame,
 **[Chorus]**
 Heart not found, heart not found,
 I keep refreshing but you're not around,
-[TODO: write 2 more chorus lines — must maintain the "internet/heartbreak" metaphor, rhyme scheme AABB]
+Your status fades without a sound,
+My lonely inbox drags me down.
 
 **[Verse 2]**
 Your profile says you're online tonight,
 The green dot glowing, soft and bright,
-[TODO: write 2 more verse lines — continue the theme of digital loneliness, rhyme with each other]
+I type three words, then lose the nerve,
+They blink in drafts I don't deserve.
 
 **[Bridge]**
-[TODO: write 4-line bridge — shift tone to acceptance, slower rhythm, can break rhyme scheme]
+I let the tabs go quiet one by one,
+No ping can bring you back to me.
+The screen grows dark; the night moves on,
+And I learn how to let it be.
 
 **[Chorus — Final]**
 Heart not found, heart not found,
@@ -45,15 +50,21 @@ And that was the end of the Cretaceous ball!
 
 **[Chorus]**
 Extinction polka, one-two-three!
-[TODO: write 3 more chorus lines — must be upbeat and absurd, reference different extinct species, maintain polka rhythm]
+Trilobites twirl in the ancient sea,
+Moa birds march with a feathered decree,
+Great auks kick up their heels with glee!
 
 **[Verse 2]**
 The dodo bird walked without a care,
 With its fluffy wings and its vacant stare,
-[TODO: write 2 more verse lines — rhyme with each other, reference the dodo's obliviousness]
+It waved at the sailors and offered a chair,
+Then wondered why nobody left it there.
 
 **[Verse 3]**
-[TODO: write full 4-line verse — pick another extinct animal (mammoth, saber-tooth, etc.), maintain humorous polka tone, AABB rhyme]
+The mammoth arrived with a trumpet and flare,
+In shaggy pajamas and frost in its hair,
+It slipped on the ice with a thunderous boom,
+Then danced itself straight to the museum room.
 
 **[Outro]**
 So raise a glass to the ones who are gone,
@@ -73,9 +84,13 @@ The garbage collector will sweep while you sleep,
 And free all the pointers you promised to keep.
 
 **[Verse 2]**
-[TODO: write full 4-line verse — continue the "computer science lullaby" theme, reference threads/deadlocks/race conditions in a soothing way, AABB rhyme]
+Softly the threads drift in orderly streams,
+Deadlocks dissolve in the hush of your dreams,
+Race conditions settle like dust in the night,
+Mutexes cradle the code until light.
 
 **[Verse 3]**
 The kernel is humming a low steady tune,
 The clock ticks in cycles from midnight to noon,
-[TODO: write 2 closing lines — wrap up the lullaby, reference shutdown/sleep mode, rhyme with each other]
+Shutdown is gentle; let sleep mode run deep,
+Rest now, dear program, in silence and sleep.
