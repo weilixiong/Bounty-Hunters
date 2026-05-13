@@ -19,10 +19,10 @@ Automated tracking of all Clankers PR contributors.
 | Mburdo | 7 | 2026-05-13 |
 | ethever | 6 | 2026-05-13 |
 | TsukinowaRin | 6 | 2026-05-13 |
+| callmekidz | 6 | 2026-05-13 |
 | GopalaKrishnaVarshith | 5 | 2026-05-13 |
 | Homie4570 | 5 | 2026-05-13 |
 | masuda-so | 5 | 2026-05-13 |
-| callmekidz | 5 | 2026-05-13 |
 | rinopatrick | 4 | 2026-05-13 |
 | tjmyou123 | 3 | 2026-05-13 |
 | kingzzoov-ctrl | 3 | 2026-05-13 |
