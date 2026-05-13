@@ -119,7 +119,7 @@ impl SessionCache {
         let inner = Arc::get_mut(&mut self.cache).ok_or(SessionError::CacheFull)?;
 
         if inner.len() >= self.max_size {
-            self.evict_expired_sessions(inner);
+            SessionCache::evict_expired_sessions(inner);
         }
 
         if inner.len() >= self.max_size {
@@ -136,9 +136,9 @@ impl SessionCache {
     pub fn get_session(&self, ticket_id: &str) -> Option<&SessionTicket> {
         // BUG(trap1): `.unwrap()` panics when the ticket_id is not present
         // in the map.  Should use `?` or a match instead.
-        let ticket = self.cache.get(ticket_id).unwrap();
+        let ticket = self.cache.get(ticket_id)?;
 
-        if self.is_ticket_expired(ticket) {
+        if SessionCache::is_ticket_expired(ticket) {
             return None;
         }
 
@@ -159,24 +159,25 @@ impl SessionCache {
     // -- internal helpers ---------------------------------------------------
 
     /// Check whether a ticket has exceeded its lifetime.
-    fn is_ticket_expired(&self, ticket: &SessionTicket) -> bool {
-        let age = self.calculate_ticket_age(ticket);
+    fn is_ticket_expired(ticket: &SessionTicket) -> bool {
+        let age = Self::calculate_ticket_age(ticket);
         age > ticket.lifetime_secs
     }
 
     /// Calculate the age of a ticket in seconds.
-    fn calculate_ticket_age(&self, ticket: &SessionTicket) -> u64 {
-        // BUG(trap4): subtracts creation_time from issued_at instead of
-        // computing `now - issued_at`.  The result is a fixed delta that
-        // never grows, so tickets effectively never expire.
-        ticket.issued_at.saturating_sub(ticket.creation_time)
+    fn calculate_ticket_age(ticket: &SessionTicket) -> u64 {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or(Duration::ZERO)
+            .as_secs();
+        now.saturating_sub(ticket.issued_at)
     }
 
     /// Evict all expired sessions from the map.
-    fn evict_expired_sessions(&self, map: &mut HashMap<String, SessionTicket>) {
+    fn evict_expired_sessions(map: &mut HashMap<String, SessionTicket>) {
         let expired_keys: Vec<String> = map
             .iter()
-            .filter(|(_, t)| self.is_ticket_expired(t))
+            .filter(|(_, ticket)| SessionCache::is_ticket_expired(ticket))
             .map(|(k, _)| k.clone())
             .collect();
 
@@ -295,5 +296,44 @@ impl SessionCache {
             self.encryption_key.key_id,
             self.max_size,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_ticket(id: &str, issued: u64, lifetime: u64) -> SessionTicket {
+        let c = SessionCache::new(b"k".to_vec());
+        SessionTicket {
+            ticket_id: id.to_string(),
+            cipher_suite: CipherSuite::TlsAes128GcmSha256 as u16,
+            master_secret: b"sec".to_vec(),
+            issued_at: issued,
+            lifetime_secs: lifetime,
+            encrypted_state: c.encrypt_ticket(b"sec").unwrap(),
+            creation_time: issued,
+        }
+    }
+
+    #[test]
+    fn missing_ticket_is_none() {
+        let cache = SessionCache::new(b"k".to_vec());
+        assert!(cache.get_session("noexist").is_none());
+    }
+
+    #[test]
+    fn expired_ticket_is_none() {
+        let mut cache = SessionCache::new(b"k".to_vec());
+        cache.store_session(make_ticket("t1", 0, 1)).unwrap();
+        assert!(cache.get_session("t1").is_none());
+    }
+
+    #[test]
+    fn valid_ticket_is_some() {
+        let mut cache = SessionCache::new(b"k".to_vec());
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        cache.store_session(make_ticket("t2", now, 3600)).unwrap();
+        assert!(cache.get_session("t2").is_some());
     }
 }
