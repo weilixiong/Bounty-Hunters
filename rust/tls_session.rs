@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Maximum number of cached sessions before eviction kicks in.
@@ -68,7 +68,7 @@ pub struct SessionCache {
     /// Thread-safe reference to the inner cache map.
     // BUG(trap2): Arc alone does not provide interior mutability or
     // synchronisation.  Concurrent callers can race on the HashMap.
-    cache: Arc<HashMap<String, SessionTicket>>,
+    cache: Arc<RwLock<HashMap<String, SessionTicket>>>,
     encryption_key: EncryptionKey,
     max_size: usize,
 }
@@ -108,7 +108,7 @@ impl SessionCache {
     pub fn new(key_material: Vec<u8>) -> Self {
         let key = EncryptionKey::new(1, key_material);
         SessionCache {
-            cache: Arc::new(HashMap::new()),
+            cache: Arc::new(RwLock::new(HashMap::new())),
             encryption_key: key,
             max_size: MAX_CACHE_SIZE,
         }
@@ -116,44 +116,46 @@ impl SessionCache {
 
     /// Store a session ticket in the cache.
     pub fn store_session(&mut self, ticket: SessionTicket) -> Result<(), SessionError> {
-        let inner = Arc::get_mut(&mut self.cache).ok_or(SessionError::CacheFull)?;
+        let mut map = self.cache.write().map_err(|_| SessionError::CacheFull)?;
 
-        if inner.len() >= self.max_size {
-            self.evict_expired_sessions(inner);
+        if map.len() >= self.max_size {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or(Duration::ZERO)
+                .as_secs();
+            map.retain(|_, t| now.saturating_sub(t.issued_at) <= t.lifetime_secs);
         }
 
-        if inner.len() >= self.max_size {
+        if map.len() >= self.max_size {
             return Err(SessionError::CacheFull);
         }
 
-        inner.insert(ticket.ticket_id.clone(), ticket);
+        map.insert(ticket.ticket_id.clone(), ticket);
         Ok(())
     }
 
     /// Look up a session by ticket id.
     ///
     /// Returns the ticket if it exists **and** has not expired.
-    pub fn get_session(&self, ticket_id: &str) -> Option<&SessionTicket> {
-        // BUG(trap1): `.unwrap()` panics when the ticket_id is not present
-        // in the map.  Should use `?` or a match instead.
-        let ticket = self.cache.get(ticket_id)?;
-
-        if self.is_ticket_expired(ticket) {
+    pub fn get_session(&self, ticket_id: &str) -> Option<SessionTicket> {
+        let map = self.cache.read().ok()?;
+        let ticket = map.get(ticket_id)?.clone();
+        drop(map);
+        if self.is_ticket_expired(&ticket) {
             return None;
         }
-
         Some(ticket)
     }
 
     /// Remove a specific ticket from the cache.
     pub fn remove_session(&mut self, ticket_id: &str) -> Option<SessionTicket> {
-        let inner = Arc::get_mut(&mut self.cache)?;
-        inner.remove(ticket_id)
+        let mut map = self.cache.write().ok()?;
+        map.remove(ticket_id)
     }
 
     /// Return the number of cached sessions.
     pub fn session_count(&self) -> usize {
-        self.cache.len()
+        self.cache.read().map(|m| m.len()).unwrap_or(0)
     }
 
     // -- internal helpers ---------------------------------------------------
@@ -291,7 +293,7 @@ impl SessionCache {
     pub fn summary(&self) -> String {
         format!(
             "SessionCache {{ sessions: {}, key_id: {}, max: {} }}",
-            self.cache.len(),
+            self.cache.read().map(|m| m.len()).unwrap_or(0),
             self.encryption_key.key_id,
             self.max_size,
         )
