@@ -114,6 +114,12 @@ impl SessionCache {
         }
     }
 
+    /// Rotate the encryption key.
+    pub fn rotate_key(&mut self, new_material: Vec<u8>) {
+        let new_id = self.encryption_key.key_id.wrapping_add(1);
+        self.encryption_key = EncryptionKey::new(new_id, new_material);
+    }
+
     /// Store a session ticket in the cache.
     pub fn store_session(&mut self, ticket: SessionTicket) -> Result<(), SessionError> {
         let inner = Arc::get_mut(&mut self.cache).ok_or(SessionError::CacheFull)?;
@@ -136,7 +142,7 @@ impl SessionCache {
     pub fn get_session(&self, ticket_id: &str) -> Option<&SessionTicket> {
         // BUG(trap1): `.unwrap()` panics when the ticket_id is not present
         // in the map.  Should use `?` or a match instead.
-        let ticket = self.cache.get(ticket_id)?;
+        let ticket = self.cache.get(ticket_id).unwrap();
 
         if self.is_ticket_expired(ticket) {
             return None;
