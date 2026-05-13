@@ -75,7 +75,9 @@ static int compute_fingerprint(X509 *cert, unsigned char *out, size_t out_len)
 
 static int match_fingerprint(const unsigned char *fp1, const unsigned char *fp2)
 {
-    return memcmp(fp1, fp2, FINGERPRINT_LEN) == 0;
+    if (!fp1 || !fp2)
+        return 0;
+    return CRYPTO_memcmp(fp1, fp2, FINGERPRINT_LEN) == 0;
 }
 
 static int check_expiry(X509 *cert)
@@ -247,3 +249,31 @@ cert_store_t *init_cert_store(int max_depth, int log_level)
     log_cert_event(LOG_LEVEL_INFO, "cert store initialized (max_depth=%d)", store->max_depth);
     return store;
 }
+
+#ifdef TEST
+#include <assert.h>
+#include <string.h>
+
+static void test_match_fingerprint_constant_time(void)
+{
+    unsigned char a[32], b[32], c[32];
+    memset(a, 0xAB, 32);
+    memset(b, 0xAB, 32);
+    memset(c, 0xCD, 32);
+    assert(match_fingerprint(a, b) == 1);
+    assert(match_fingerprint(a, c) == 0);
+    assert(match_fingerprint(NULL, b) == 0);
+}
+
+int main(void)
+{
+    test_match_fingerprint_constant_time();
+    return 0;
+}
+#else
+int main(void)
+{
+    return 0;
+}
+#endif
+
