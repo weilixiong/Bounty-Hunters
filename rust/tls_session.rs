@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Maximum number of cached sessions before eviction kicks in.
@@ -68,7 +68,7 @@ pub struct SessionCache {
     /// Thread-safe reference to the inner cache map.
     // BUG(trap2): Arc alone does not provide interior mutability or
     // synchronisation.  Concurrent callers can race on the HashMap.
-    cache: Arc<HashMap<String, SessionTicket>>,
+    cache: Arc<RwLock<HashMap<String, SessionTicket>>>,
     encryption_key: EncryptionKey,
     max_size: usize,
 }
@@ -108,18 +108,18 @@ impl SessionCache {
     pub fn new(key_material: Vec<u8>) -> Self {
         let key = EncryptionKey::new(1, key_material);
         SessionCache {
-            cache: Arc::new(HashMap::new()),
+            cache: Arc::new(RwLock::new(HashMap::new())),
             encryption_key: key,
             max_size: MAX_CACHE_SIZE,
         }
     }
 
     /// Store a session ticket in the cache.
-    pub fn store_session(&mut self, ticket: SessionTicket) -> Result<(), SessionError> {
-        let inner = Arc::get_mut(&mut self.cache).ok_or(SessionError::CacheFull)?;
+    pub fn store_session(&self, ticket: SessionTicket) -> Result<(), SessionError> {
+        let mut inner = self.cache.write().map_err(|_| SessionError::InvalidTicket("lock poisoned".to_string()))?;
 
         if inner.len() >= self.max_size {
-            self.evict_expired_sessions(inner);
+            self.evict_expired_sessions(&mut inner);
         }
 
         if inner.len() >= self.max_size {
@@ -133,12 +133,13 @@ impl SessionCache {
     /// Look up a session by ticket id.
     ///
     /// Returns the ticket if it exists **and** has not expired.
-    pub fn get_session(&self, ticket_id: &str) -> Option<&SessionTicket> {
-        // BUG(trap1): `.unwrap()` panics when the ticket_id is not present
-        // in the map.  Should use `?` or a match instead.
-        let ticket = self.cache.get(ticket_id).unwrap();
+    pub fn get_session(&self, ticket_id: &str) -> Option<SessionTicket> {
+        let ticket = {
+            let inner = self.cache.read().ok()?;
+            inner.get(ticket_id)?.clone()
+        };
 
-        if self.is_ticket_expired(ticket) {
+        if self.is_ticket_expired(&ticket) {
             return None;
         }
 
@@ -146,14 +147,14 @@ impl SessionCache {
     }
 
     /// Remove a specific ticket from the cache.
-    pub fn remove_session(&mut self, ticket_id: &str) -> Option<SessionTicket> {
-        let inner = Arc::get_mut(&mut self.cache)?;
+    pub fn remove_session(&self, ticket_id: &str) -> Option<SessionTicket> {
+        let mut inner = self.cache.write().ok()?;
         inner.remove(ticket_id)
     }
 
     /// Return the number of cached sessions.
     pub fn session_count(&self) -> usize {
-        self.cache.len()
+        self.cache.read().map(|inner| inner.len()).unwrap_or(0)
     }
 
     // -- internal helpers ---------------------------------------------------
@@ -173,10 +174,10 @@ impl SessionCache {
     }
 
     /// Evict all expired sessions from the map.
-    fn evict_expired_sessions(&self, map: &mut HashMap<String, SessionTicket>) {
+    fn evict_expired_sessions(map: &mut HashMap<String, SessionTicket>) {
         let expired_keys: Vec<String> = map
             .iter()
-            .filter(|(_, t)| self.is_ticket_expired(t))
+            .filter(|(_, ticket)| Self::is_ticket_expired(ticket))
             .map(|(k, _)| k.clone())
             .collect();
 
@@ -291,9 +292,54 @@ impl SessionCache {
     pub fn summary(&self) -> String {
         format!(
             "SessionCache {{ sessions: {}, key_id: {}, max: {} }}",
-            self.cache.len(),
+            self.cache.read().map(|inner| inner.len()).unwrap_or(0),
             self.encryption_key.key_id,
             self.max_size,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::thread;
+
+    fn make_ticket(id: &str, issued: u64, life: u64) -> SessionTicket {
+        let c = SessionCache::new(b"k".to_vec());
+        SessionTicket {
+            ticket_id: id.to_string(),
+            cipher_suite: 0x1301,
+            master_secret: b"s".to_vec(),
+            issued_at: issued,
+            lifetime_secs: life,
+            encrypted_state: c.encrypt_ticket(b"s").unwrap(),
+            creation_time: issued,
+        }
+    }
+
+    #[test]
+    fn concurrent_store_and_get() {
+        let cache = Arc::new(SessionCache::new(b"k".to_vec()));
+        let mut hs = Vec::new();
+        for i in 0..10 {
+            let c = Arc::clone(&cache);
+            hs.push(thread::spawn(move || {
+                let id = format!("t-{i}");
+                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+                c.store_session(make_ticket(&id, now, 3600)).unwrap();
+                assert!(c.get_session(&id).is_some());
+            }));
+        }
+        for h in hs { h.join().unwrap(); }
+    }
+
+    #[test]
+    fn remove_session_works() {
+        let cache = Arc::new(SessionCache::new(b"k".to_vec()));
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        cache.store_session(make_ticket("x", now, 3600)).unwrap();
+        assert!(cache.get_session("x").is_some());
+        cache.remove_session("x");
+        assert!(cache.get_session("x").is_none());
     }
 }
