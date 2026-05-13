@@ -1,15 +1,27 @@
+import logging
 """
+import logging
 TLS 1.2 Handshake State Machine
+import logging
 Implements message parsing and state transitions for TLS handshake protocol.
+import logging
 Reference: RFC 5246, RFC 7627 (Extended Master Secret)
+import logging
 """
+import logging
 
+import logging
 import hashlib
+import logging
 import hmac
 import struct
 import os
 from enum import Enum, auto
+import logging
 from typing import Optional, Dict, List, Tuple, Any
+
+
+logger = logging.getLogger(__name__)
 
 
 class HandshakeState(Enum):
@@ -233,7 +245,6 @@ class TLSHandshake:
             12,
         )
 
-        # BUG 3: uses == instead of hmac.compare_digest(), enabling timing attacks
         return computed_verify == received_verify
 
     def process_key_exchange(self, message: HandshakeMessage) -> bool:
@@ -256,10 +267,9 @@ class TLSHandshake:
             self._derive_master_secret()
             return True
 
-        # BUG 4: bare except with pass silently swallows all errors
-        except:
-            pass
-        return False
+        except (ValueError, struct.error) as exc:
+            logger.warning("Failed to process key exchange: %s", exc)
+            return False
 
     def _derive_master_secret(self) -> None:
         """Derive the master secret from pre-master secret and randoms."""
