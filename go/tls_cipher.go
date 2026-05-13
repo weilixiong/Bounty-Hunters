@@ -43,6 +43,7 @@ type SuiteRegistry struct {
 	knownSuites []*CipherSuite
 	minStrength CipherStrength
 	preferredID uint16
+	goarch      string
 	suiteCache  map[uint16]*CipherSuite // BUG(5): unprotected shared cache
 	mu          sync.Mutex              // guards knownSuites only
 }
@@ -51,6 +52,7 @@ type SuiteRegistry struct {
 func NewSuiteRegistry(minStrength CipherStrength) *SuiteRegistry {
 	reg := &SuiteRegistry{
 		minStrength: minStrength,
+		goarch:      runtime.GOARCH,
 		suiteCache:  make(map[uint16]*CipherSuite),
 	}
 	reg.loadDefaults()
@@ -217,6 +219,14 @@ func (r *SuiteRegistry) SortByPreference(suites []*CipherSuite) []*CipherSuite {
 		// BUG(4): operator is flipped; should be si.IsAEAD && !sj.IsAEAD
 		if si.IsAEAD != sj.IsAEAD {
 			return !si.IsAEAD && sj.IsAEAD
+		}
+
+		if r.goarch == "arm64" {
+			siChaCha := strings.Contains(si.Name, "CHACHA20_POLY1305")
+			sjChaCha := strings.Contains(sj.Name, "CHACHA20_POLY1305")
+			if siChaCha != sjChaCha {
+				return siChaCha
+			}
 		}
 
 		// Higher strength first
