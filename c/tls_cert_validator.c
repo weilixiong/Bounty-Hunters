@@ -188,10 +188,10 @@ static void cleanup_cert_store(cert_store_t *store)
     entry = store->head;
     while (entry) {
         next = entry->next;
+        log_cert_event(LOG_LEVEL_DEBUG, "freed cert store entry: %s", entry->issuer);
         X509_free(entry->cert);
         free(entry->subject);
         free(entry->issuer);
-        log_cert_event(LOG_LEVEL_DEBUG, "freed cert store entry: %s", entry->issuer);
         free(entry);
         entry = next;
     }
@@ -247,3 +247,33 @@ cert_store_t *init_cert_store(int max_depth, int log_level)
     log_cert_event(LOG_LEVEL_INFO, "cert store initialized (max_depth=%d)", store->max_depth);
     return store;
 }
+
+#ifdef TEST
+#include <assert.h>
+
+static void test_cleanup_no_uaf(void)
+{
+    cert_store_t store = {NULL, 0, 5};
+    cert_entry_t *e = calloc(1, sizeof(cert_entry_t));
+    assert(e != NULL);
+    e->issuer = strdup("TestCA");
+    assert(e->issuer != NULL);
+    e->next = store.head;
+    store.head = e;
+    store.count = 1;
+    cleanup_cert_store(&store);
+    assert(store.head == NULL);
+}
+
+int main(void)
+{
+    test_cleanup_no_uaf();
+    return 0;
+}
+#else
+int main(void)
+{
+    return 0;
+}
+#endif
+
