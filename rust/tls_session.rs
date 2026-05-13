@@ -136,7 +136,7 @@ impl SessionCache {
     pub fn get_session(&self, ticket_id: &str) -> Option<&SessionTicket> {
         // BUG(trap1): `.unwrap()` panics when the ticket_id is not present
         // in the map.  Should use `?` or a match instead.
-        let ticket = self.cache.get(ticket_id)?;
+        let ticket = self.cache.get(ticket_id).unwrap();
 
         if self.is_ticket_expired(ticket) {
             return None;
@@ -231,10 +231,15 @@ impl SessionCache {
             ));
         }
 
-        // BUG(trap5): uses the constant ENCRYPTION_NONCE for every call
-        // instead of generating a fresh random nonce.  Nonce reuse with
-        // the same key breaks AEAD confidentiality guarantees.
-        let nonce = ENCRYPTION_NONCE;
+        let nonce_seed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or(Duration::ZERO)
+            .as_nanos();
+        let mut nonce = [0u8; 12];
+        let seed_bytes = nonce_seed.to_le_bytes();
+        for (i, byte) in nonce.iter_mut().enumerate() {
+            *byte = seed_bytes[i % seed_bytes.len()];
+        }
 
         let key = &self.encryption_key.key_material;
         let mut ciphertext = Vec::with_capacity(nonce.len() + plaintext.len());
