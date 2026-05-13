@@ -22,8 +22,8 @@ Automated tracking of all Clankers PR contributors.
 | kingzzoov-ctrl | 3 | 2026-05-13 |
 | Mermaid-Man | 3 | 2026-05-13 |
 | AidenPeerce | 3 | 2026-05-13 |
+| iice257 | 3 | 2026-05-13 |
 | tuvmdainam | 2 | 2026-05-13 |
-| iice257 | 2 | 2026-05-13 |
 | davguij | 2 | 2026-05-13 |
 | SebnemC | 2 | 2026-05-13 |
 | Saumya-Verma123 | 2 | 2026-05-13 |
