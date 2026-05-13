@@ -120,6 +120,18 @@ static int verify_signature(X509 *cert, X509 *issuer)
     return CERT_STATUS_OK;
 }
 
+
+static int validate_ocsp(chain_context_t *ctx)
+{
+    if (!ctx)
+        return CERT_STATUS_INVALID;
+    if (!ctx->verify_ocsp)
+        return CERT_STATUS_OK;
+
+    log_cert_event(LOG_LEVEL_ERROR, "OCSP validation requested but no stapled response is available");
+    return CERT_STATUS_REVOKED;
+}
+
 static cert_entry_t *find_issuer(cert_store_t *store, X509 *cert)
 {
     X509_NAME *issuer_name = X509_get_issuer_name(cert);
@@ -162,6 +174,10 @@ static int validate_chain(chain_context_t *ctx)
         return CERT_STATUS_UNTRUSTED;
     }
     rc = verify_signature(ctx->chain[ctx->chain_len - 1], trusted_issuer->cert);
+    if (rc != CERT_STATUS_OK)
+        return rc;
+
+    rc = validate_ocsp(ctx);
     if (rc != CERT_STATUS_OK)
         return rc;
 
@@ -247,3 +263,26 @@ cert_store_t *init_cert_store(int max_depth, int log_level)
     log_cert_event(LOG_LEVEL_INFO, "cert store initialized (max_depth=%d)", store->max_depth);
     return store;
 }
+
+#ifdef TEST
+#include <assert.h>
+
+static void test_ocsp_skipped_when_disabled(void)
+{
+    chain_context_t ctx = {0};
+    ctx.verify_ocsp = 0;
+    assert(validate_ocsp(&ctx) == CERT_STATUS_OK);
+}
+
+int main(void)
+{
+    test_ocsp_skipped_when_disabled();
+    return 0;
+}
+#else
+int main(void)
+{
+    return 0;
+}
+#endif
+
