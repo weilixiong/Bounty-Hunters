@@ -79,6 +79,7 @@ Automated tracking of all Clankers PR contributors.
 | Colonel-Courtz | 2 | 2026-05-14T22:31:54.071Z | 2026-05-14T22:36:19.010Z |
 | gendengsaurus | 2 | 2026-05-15T03:10:28.528Z | 2026-05-15T03:12:09.085Z |
 | apoorvdarshan | 2 | 2026-05-15T19:16:08.725Z | 2026-05-15T19:16:47.545Z |
+| szamaniai | 2 | 2026-05-15T22:35:37.279Z | 2026-05-15T22:35:50.956Z |
 | ErenCankutUYSAL | 1 | 2026-05-13T19:25:27Z | 2026-05-13T19:25:27Z |
 | KentoYoung | 1 | 2026-05-13T07:16:29Z | 2026-05-13T07:16:29Z |
 | LittleK-513 | 1 | 2026-05-13T10:19:25Z | 2026-05-13T10:19:25Z |
@@ -123,4 +124,3 @@ Automated tracking of all Clankers PR contributors.
 | CuboYe | 1 | 2026-05-15T21:11:20.255Z | 2026-05-15T21:11:20.255Z |
 | Inaki-afk | 1 | 2026-05-15T21:12:46.518Z | 2026-05-15T21:12:46.518Z |
 | ScottShao | 1 | 2026-05-15T22:01:15.001Z | 2026-05-15T22:01:15.001Z |
-| szamaniai | 1 | 2026-05-15T22:35:37.279Z | 2026-05-15T22:35:37.279Z |
