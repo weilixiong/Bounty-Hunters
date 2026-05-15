@@ -354,6 +354,12 @@
     "last_pr": "2026-05-14T22:36:19.010Z"
   },
   {
+    "username": "gendengsaurus",
+    "total_prs": 2,
+    "first_pr": "2026-05-15T03:10:28.528Z",
+    "last_pr": "2026-05-15T03:12:09.085Z"
+  },
+  {
     "username": "694410194",
     "total_prs": 1,
     "first_pr": "2026-05-13T13:33:33Z",
@@ -580,11 +586,5 @@
     "total_prs": 1,
     "first_pr": "2026-05-15T02:04:51.797Z",
     "last_pr": "2026-05-15T02:04:51.797Z"
-  },
-  {
-    "username": "gendengsaurus",
-    "total_prs": 1,
-    "first_pr": "2026-05-15T03:10:28.528Z",
-    "last_pr": "2026-05-15T03:10:28.528Z"
   }
 ]
