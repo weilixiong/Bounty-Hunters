@@ -87,3 +87,4 @@ export const BranchProtectionLayer = Layer.effect(BranchProtectionService, makeB
 
 export const branchProtectionQueryKey = (owner: string, repo: string, branch: string): readonly [string, string, string, string] =>
   ["branchProtection", owner, repo, branch] as const;
+
