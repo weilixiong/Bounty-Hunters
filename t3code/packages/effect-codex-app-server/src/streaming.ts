@@ -111,3 +111,4 @@ export const streamGenerationWithAbort = (
   }).pipe(
     Effect.map((stream) => stream.pipe(Stream.onError(() => Effect.sync(() => controller.abort())))),
   );
+
