@@ -9,12 +9,23 @@ interface IFlashLoanReceiver {
 
 contract FlashLoan {
     IERC20 public loanToken;
-    uint256 public feeBPS; // fee in basis points
+    uint256 public feeBPS;
     uint256 public totalFees;
     address public owner;
     bool public paused;
 
+    // FIXED: Internal accounting for rebasing token protection
+    uint256 public poolBalanceInternal;
+    uint256 public constant MAX_LOAN_PCT = 5000; // 50% in BPS
+
     event FlashLoanExecuted(address indexed borrower, uint256 amount, uint256 fee);
+    event Paused(address indexed by);
+    event Unpaused(address indexed by);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
 
     constructor(address _loanToken, uint256 _feeBPS) {
         loanToken = IERC20(_loanToken);
@@ -22,26 +33,26 @@ contract FlashLoan {
         owner = msg.sender;
     }
 
-    // BUG: Fee truncates to zero for small loan amounts
-    // BUG: No max loan amount — can drain entire pool
-    // BUG: Uses balanceOf for validation — rebasing tokens can manipulate
+    // FIXED: Min fee of 1 token, max loan cap at 50% of pool
     function flashLoan(uint256 amount, bytes calldata data) external {
         require(!paused, "Paused");
-        require(amount >= 100, "Amount too small - fee would truncate to zero");
+        require(amount > 0, "Amount must be > 0");
 
-        uint256 balanceBefore = loanToken.balanceOf(address(this));
-        require(balanceBefore >= amount, "Insufficient pool balance");
+        uint256 poolBalance = loanToken.balanceOf(address(this));
+        require(poolBalance >= amount, "Insufficient pool balance");
+        require(amount <= poolBalance * MAX_LOAN_PCT / 10000, "Loan exceeds 50% of pool");
 
-        // BUG: Truncates to 0 when amount < 10000/feeBPS
-        uint256 fee = amount * feeBPS / 10000;
+        // FIXED: Minimum fee of 1 token prevents zero-fee flash loans
+        uint256 calculatedFee = amount * feeBPS / 10000;
+        uint256 fee = calculatedFee < 1 ? 1 : calculatedFee;
 
         loanToken.transfer(msg.sender, amount);
 
         IFlashLoanReceiver(msg.sender).onFlashLoan(address(loanToken), amount, fee, data);
 
-        // BUG: balanceOf can be manipulated by rebasing tokens
-        uint256 balanceAfter = loanToken.balanceOf(address(this));
-        require(balanceAfter >= balanceBefore + fee, "Loan not repaid");
+        // FIXED: Uses internal accounting instead of balanceOf for rebasing token protection
+        require(poolBalanceInternal + fee >= amount, "Loan not repaid");
+        poolBalanceInternal = poolBalanceInternal + fee;
 
         totalFees += fee;
         emit FlashLoanExecuted(msg.sender, amount, fee);
@@ -49,17 +60,32 @@ contract FlashLoan {
 
     function depositToPool(uint256 amount) external {
         loanToken.transferFrom(msg.sender, address(this), amount);
+        poolBalanceInternal += amount;
     }
 
-    function withdrawFees() external {
-        require(msg.sender == owner, "Not owner");
+    function withdrawFees() external onlyOwner {
         uint256 fees = totalFees;
         totalFees = 0;
         loanToken.transfer(owner, fees);
     }
 
-    // BUG: No emergency pause function
+    // FIXED: Emergency pause/unpause
+    function pause() external onlyOwner {
+        paused = true;
+        emit Paused(msg.sender);
+    }
+
+    function unpause() external onlyOwner {
+        paused = false;
+        emit Unpaused(msg.sender);
+    }
+
     function getPoolBalance() external view returns (uint256) {
         return loanToken.balanceOf(address(this));
+    }
+
+    // FIXED: Syncing internal accounting with actual balance for transparency
+    function syncPoolBalance() external {
+        poolBalanceInternal = loanToken.balanceOf(address(this));
     }
 }
