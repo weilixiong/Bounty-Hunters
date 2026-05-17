@@ -1,0 +1,5 @@
+{
+  "agent": "tietou",
+  "pre_task_context": "Pre-compaction memory flush turn. Store durable memories only in memory/2026-05-17.md (create memory/ if needed). If nothing to store, reply with NO_REPLY. Tools: read, write, edit.",
+  "timestamp": "2026-05-17T10:53:00+08:00"
+}
